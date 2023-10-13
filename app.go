@@ -329,6 +329,29 @@ func (app *App) Start() {
 		logger.Log.Warn("the app will shutdown in a few seconds")
 	case s := <-sg:
 		logger.Log.Warn("got signal: ", s, ", shutting down...")
+		if app.config.Session.Drain.Enabled && s == syscall.SIGTERM {
+			logger.Log.Info("Session drain is enabled, draining all sessions before shutting down")
+			timeoutTimer := time.NewTimer(app.config.Session.Drain.Timeout)
+		loop:
+			for {
+				if app.sessionPool.GetSessionCount() == 0 {
+					logger.Log.Info("All sessions drained")
+					break loop
+				}
+				select {
+				case s := <-sg:
+					logger.Log.Warn("got signal: ", s)
+					if s == syscall.SIGINT {
+						logger.Log.Warnf("Bypassing session draing due to SIGINT. %d sessions will be immediately terminated", app.sessionPool.GetSessionCount())
+					}
+					break loop
+				case <-timeoutTimer.C:
+					logger.Log.Warnf("Session drain has reached maximum timeout. %d sessions will be immediately terminated", app.sessionPool.GetSessionCount())
+				case <-time.After(app.config.Session.Drain.Timeout):
+					logger.Log.Infof("Waiting for all sessions to finish: %d sessions remaining...", app.sessionPool.GetSessionCount())
+				}
+			}
+		}
 		close(app.dieChan)
 	}
 
@@ -365,8 +388,12 @@ func (app *App) listen() {
 		go func() {
 			a.ListenAndServe()
 		}()
+		logger.Log.Infof("Waiting for Acceptor %s to start on addr %s", reflect.TypeOf(a), a.GetConfiguredAddress())
 
-		logger.Log.Infof("listening with acceptor %s on addr %s", reflect.TypeOf(a), a.GetAddr())
+		for a.IsRunning() == false {
+		}
+
+		logger.Log.Infof("Acceptor %s on addr %s is now accepting connections", reflect.TypeOf(a), a.GetAddr())
 	}
 
 	if app.serverMode == Cluster && app.server.Frontend && app.config.Session.Unique {
@@ -442,7 +469,7 @@ func GetDefaultLoggerFromCtx(ctx context.Context) logging.Logger {
 
 // AddMetricTagsToPropagateCtx adds a key and metric tags that will
 // be propagated through RPC calls. Use the same tags that are at
-// 'pitaya.metrics.additionalTags' config
+// 'pitaya.metrics.additionalLabels' config
 func AddMetricTagsToPropagateCtx(
 	ctx context.Context,
 	tags map[string]string,

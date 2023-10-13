@@ -32,6 +32,11 @@ type PitayaConfig struct {
 	} `mapstructure:"concurrency"`
 	Session struct {
 		Unique bool `mapstructure:"unique"`
+		Drain  struct {
+			Enabled bool          `mapstructure:"enabled"`
+			Timeout time.Duration `mapstructure:"timeout"`
+			Period  time.Duration `mapstructure:"period"`
+		} `mapstructure:"drain"`
 	} `mapstructure:"session"`
 	Metrics struct {
 		Period time.Duration `mapstructure:"period"`
@@ -95,8 +100,22 @@ func NewDefaultPitayaConfig() *PitayaConfig {
 		},
 		Session: struct {
 			Unique bool `mapstructure:"unique"`
+			Drain  struct {
+				Enabled bool          `mapstructure:"enabled"`
+				Timeout time.Duration `mapstructure:"timeout"`
+				Period  time.Duration `mapstructure:"period"`
+			} `mapstructure:"drain"`
 		}{
 			Unique: true,
+			Drain: struct {
+				Enabled bool          `mapstructure:"enabled"`
+				Timeout time.Duration `mapstructure:"timeout"`
+				Period  time.Duration `mapstructure:"period"`
+			}{
+				Enabled: false,
+				Timeout: time.Duration(6 * time.Hour),
+				Period:  time.Duration(5 * time.Second),
+			},
 		},
 		Metrics: struct {
 			Period time.Duration `mapstructure:"period"`
@@ -125,17 +144,17 @@ type BuilderConfig struct {
 	Pitaya  PitayaConfig
 	Metrics struct {
 		Prometheus struct {
-			Enabled bool
-		}
+			Enabled bool `mapstructure:"enabled"`
+		} `mapstructure:"prometheus"`
 		Statsd struct {
-			Enabled bool
-		}
-	}
+			Enabled bool `mapstructure:"enabled"`
+		} `mapstructure:"statsd"`
+	} `mapstructure:"metrics"`
 	DefaultPipelines struct {
 		StructValidation struct {
-			Enabled bool
-		}
-	}
+			Enabled bool `mapstructure:"enabled"`
+		} `mapstructure:"structvalidation"`
+	} `mapstructure:"defaultpipelines"`
 }
 
 // NewDefaultBuilderConfig provides default builder configuration
@@ -144,30 +163,30 @@ func NewDefaultBuilderConfig() *BuilderConfig {
 		Pitaya: *NewDefaultPitayaConfig(),
 		Metrics: struct {
 			Prometheus struct {
-				Enabled bool
-			}
+				Enabled bool `mapstructure:"enabled"`
+			} `mapstructure:"prometheus"`
 			Statsd struct {
-				Enabled bool
-			}
+				Enabled bool `mapstructure:"enabled"`
+			} `mapstructure:"statsd"`
 		}{
 			Prometheus: struct {
-				Enabled bool
+				Enabled bool `mapstructure:"enabled"`
 			}{
 				Enabled: false,
 			},
 			Statsd: struct {
-				Enabled bool
+				Enabled bool `mapstructure:"enabled"`
 			}{
 				Enabled: false,
 			},
 		},
 		DefaultPipelines: struct {
 			StructValidation struct {
-				Enabled bool
-			}
+				Enabled bool `mapstructure:"enabled"`
+			} `mapstructure:"structvalidation"`
 		}{
 			StructValidation: struct {
-				Enabled bool
+				Enabled bool `mapstructure:"enabled"`
 			}{
 				Enabled: false,
 			},
@@ -179,6 +198,9 @@ func NewDefaultBuilderConfig() *BuilderConfig {
 func NewBuilderConfig(config *Config) *BuilderConfig {
 	conf := NewDefaultBuilderConfig()
 	if err := config.Unmarshal(&conf); err != nil {
+		panic(err)
+	}
+	if err := config.UnmarshalKey("pitaya", &conf); err != nil {
 		panic(err)
 	}
 	return conf
@@ -421,7 +443,7 @@ func NewCustomMetricsSpec(config *Config) *models.CustomMetricsSpec {
 type PrometheusConfig struct {
 	Prometheus struct {
 		Port             int               `mapstructure:"port"`
-		AdditionalLabels map[string]string `mapstructure:"additionaltags"`
+		AdditionalLabels map[string]string `mapstructure:"additionallabels"`
 	} `mapstructure:"prometheus"`
 	Game        string            `mapstructure:"game"`
 	ConstLabels map[string]string `mapstructure:"constlabels"`
@@ -432,7 +454,7 @@ func NewDefaultPrometheusConfig() *PrometheusConfig {
 	return &PrometheusConfig{
 		Prometheus: struct {
 			Port             int               `mapstructure:"port"`
-			AdditionalLabels map[string]string `mapstructure:"additionaltags"`
+			AdditionalLabels map[string]string `mapstructure:"additionallabels"`
 		}{
 			Port:             9090,
 			AdditionalLabels: map[string]string{},

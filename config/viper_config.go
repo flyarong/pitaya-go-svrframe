@@ -99,7 +99,7 @@ func (c *Config) fillDefaultValues() {
 		"pitaya.cluster.sd.etcd.heartbeat.ttl":                  etcdSDConfig.Heartbeat.TTL,
 		"pitaya.cluster.sd.etcd.revoke.timeout":                 etcdSDConfig.Revoke.Timeout,
 		"pitaya.cluster.sd.etcd.syncservers.interval":           etcdSDConfig.SyncServers.Interval,
-		"pitaya.cluster.sd.etcd.syncserversparallelism":         etcdSDConfig.SyncServers.Parallelism,
+		"pitaya.cluster.sd.etcd.syncservers.parallelism":        etcdSDConfig.SyncServers.Parallelism,
 		"pitaya.cluster.sd.etcd.shutdown.delay":                 etcdSDConfig.Shutdown.Delay,
 		"pitaya.cluster.sd.etcd.servertypeblacklist":            etcdSDConfig.ServerTypesBlacklist,
 		// the sum of this config among all the frontend servers should always be less than
@@ -116,10 +116,10 @@ func (c *Config) fillDefaultValues() {
 		"pitaya.groups.memory.tickduration":                groupServiceConfig.TickDuration,
 		"pitaya.handler.messages.compression":              pitayaConfig.Handler.Messages.Compression,
 		"pitaya.heartbeat.interval":                        pitayaConfig.Heartbeat.Interval,
-		"pitaya.metrics.prometheus.additionalTags":         prometheusConfig.Prometheus.AdditionalLabels,
-		"pitaya.metrics.constTags":                         prometheusConfig.ConstLabels,
+		"pitaya.metrics.prometheus.additionalLabels":       prometheusConfig.Prometheus.AdditionalLabels,
+		"pitaya.metrics.constLabels":                       prometheusConfig.ConstLabels,
 		"pitaya.metrics.custom":                            customMetricsSpec,
-		"pitaya.metrics.periodicMetrics.period":            pitayaConfig.Metrics.Period,
+		"pitaya.metrics.period":                            pitayaConfig.Metrics.Period,
 		"pitaya.metrics.prometheus.enabled":                builderConfig.Metrics.Prometheus.Enabled,
 		"pitaya.metrics.prometheus.port":                   prometheusConfig.Prometheus.Port,
 		"pitaya.metrics.statsd.enabled":                    builderConfig.Metrics.Statsd.Enabled,
@@ -134,6 +134,9 @@ func (c *Config) fillDefaultValues() {
 		"pitaya.conn.ratelimiting.interval":                rateLimitingConfig.Interval,
 		"pitaya.conn.ratelimiting.forcedisable":            rateLimitingConfig.ForceDisable,
 		"pitaya.session.unique":                            pitayaConfig.Session.Unique,
+		"pitaya.session.drain.enabled":                     pitayaConfig.Session.Drain.Enabled,
+		"pitaya.session.drain.timeout":                     pitayaConfig.Session.Drain.Timeout,
+		"pitaya.session.drain.period":                      pitayaConfig.Session.Drain.Period,
 		"pitaya.worker.concurrency":                        workerConfig.Concurrency,
 		"pitaya.worker.redis.pool":                         workerConfig.Redis.Pool,
 		"pitaya.worker.redis.url":                          workerConfig.Redis.ServerURL,
@@ -151,6 +154,7 @@ func (c *Config) fillDefaultValues() {
 			c.config.SetDefault(param, defaultsMap[param])
 		} else {
 			c.config.SetDefault(param, val)
+			c.config.Set(param, val)
 		}
 
 	}

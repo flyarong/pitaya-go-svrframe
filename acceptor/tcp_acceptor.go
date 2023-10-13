@@ -84,7 +84,7 @@ func NewTCPAcceptor(addr string, certs ...string) *TCPAcceptor {
 	} else if ( len(certs) == 2 && certs[0] != "" && certs[1] != "") {
 		cert, err := tls.LoadX509KeyPair(certs[0], certs[1])
 		if err != nil {
-			panic(fmt.Errorf("%w: %w",constants.ErrInvalidCertificates,err))
+			panic(fmt.Errorf("%w: %v",constants.ErrInvalidCertificates,err))
 		}
 		certificates = append(certificates, cert)
 	}
@@ -201,4 +201,12 @@ func (a *TCPAcceptor) serve() {
 			remoteAddr: remoteAddr,
 		}
 	}
+}
+
+func (a *TCPAcceptor) IsRunning() bool {
+        return a.running
+}
+
+func (a *TCPAcceptor) GetConfiguredAddress() string {
+        return a.addr
 }

@@ -34,6 +34,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	logutil "go.etcd.io/etcd/client/pkg/v3/logutil"
 	"go.etcd.io/etcd/client/v3/namespace"
+	"google.golang.org/grpc"
 )
 
 type etcdServiceDiscovery struct {
@@ -187,7 +188,9 @@ func (sd *etcdServiceDiscovery) renewLease() error {
 
 func (sd *etcdServiceDiscovery) grantLease() error {
 	// grab lease
-	l, err := sd.cli.Grant(context.TODO(), int64(sd.heartbeatTTL.Seconds()))
+	ctx, cancel := context.WithTimeout(context.Background(), sd.etcdDialTimeout)
+	defer cancel()
+	l, err := sd.cli.Grant(ctx, int64(sd.heartbeatTTL.Seconds()))
 	if err != nil {
 		return err
 	}
@@ -345,6 +348,7 @@ func (sd *etcdServiceDiscovery) InitETCDClient() error {
 		Endpoints:   sd.etcdEndpoints,
 		DialTimeout: sd.etcdDialTimeout,
 		Logger:      etcdClientLogger,
+		DialOptions: []grpc.DialOption{grpc.WithBlock()},
 	}
 	if sd.etcdUser != "" && sd.etcdPass != "" {
 		config.Username = sd.etcdUser
@@ -607,9 +611,9 @@ func (sd *etcdServiceDiscovery) Shutdown() error {
 // revoke prevents Pitaya from crashing when etcd is not available
 func (sd *etcdServiceDiscovery) revoke() error {
 	close(sd.stopLeaseChan)
-	c := make(chan error)
-	defer close(c)
+	c := make(chan error, 1)
 	go func() {
+		defer close(c)
 		logger.Log.Debug("waiting for etcd revoke")
 		_, err := sd.cli.Revoke(context.TODO(), sd.leaseID)
 		c <- err
